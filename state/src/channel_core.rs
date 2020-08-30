@@ -117,6 +117,15 @@ impl ChannelCore {
         fallback
     }
 
+    pub fn rss(&self) -> Option<&str> {
+        self.rss.as_deref()
+    }
+
+    pub fn with_rss(mut self, rss: String) -> ChannelCore {
+        self.rss = Some(rss);
+        self
+    }
+
     pub fn details(&self) -> Option<Arc<Result<ChannelDetail, StateError>>> {
         let state = self.state.upgrade()?.get();
 

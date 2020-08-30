@@ -1,4 +1,6 @@
 [workspace]
 members = [
-  "data"
+  "state",
+  "loader",
+  "cli"
 ]

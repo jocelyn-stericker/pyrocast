@@ -22,6 +22,9 @@ pub use state_error::StateError;
 
 #[derive(Debug)]
 pub enum StateAction {
+    SetCountry(String),
+    SetAllowExplicit(bool),
+
     SetSearchQuery(String),
     SetSearchFeed {
         query: String,
@@ -32,6 +35,7 @@ pub enum StateAction {
     SetChannelDetail(String, Result<ChannelDetail, StateError>),
     SetEpisode(String, Result<Episode, StateError>),
     SetImage(String, Result<Image, StateError>),
+    SetLoading(bool),
 }
 
 pub(crate) type AMap<T> = Arc<HashMap<String, Arc<Result<T, StateError>>>>;
@@ -40,6 +44,9 @@ pub(crate) type AMap<T> = Arc<HashMap<String, Arc<Result<T, StateError>>>>;
 /// Everything that is needed to render the UI.
 pub struct State {
     pub(crate) current: Weak<CurrentState>,
+
+    pub(crate) country: String,
+    pub(crate) allow_explicit: bool,
 
     pub(crate) search_query: String,
     pub(crate) search_focus: Option<ChannelRef>,
@@ -50,9 +57,19 @@ pub struct State {
     pub(crate) channel_detail: AMap<ChannelDetail>,
     pub(crate) episodes: AMap<Episode>,
     pub(crate) images: AMap<Image>,
+
+    pub(crate) loading: bool,
 }
 
 impl State {
+    pub fn country(&self) -> &str {
+        &self.country
+    }
+
+    pub fn allow_explicit(&self) -> bool {
+        self.allow_explicit
+    }
+
     pub fn search_query(&self) -> &str {
         &self.search_query
     }
@@ -63,6 +80,10 @@ impl State {
 
     pub fn search_results(&self) -> Result<&Vec<ChannelRef>, &StateError> {
         Result::as_ref(&self.search_results)
+    }
+
+    pub fn loading(&self) -> bool {
+        self.loading
     }
 
     pub fn new_channel_core(&self) -> ChannelCore {
@@ -102,6 +123,8 @@ impl State {
     fn new() -> Self {
         State {
             current: Weak::new(),
+            country: String::from("CA"),
+            allow_explicit: false,
             search_query: String::new(),
             search_focus: None,
             search_results: Arc::new(Result::Err(StateError::Loading)),
@@ -109,6 +132,7 @@ impl State {
             channel_detail: Default::default(),
             episodes: Default::default(),
             images: Default::default(),
+            loading: true,
         }
     }
 
@@ -128,6 +152,12 @@ impl State {
 
         for action in actions {
             match action {
+                StateAction::SetCountry(country) => {
+                    next.country = country;
+                }
+                StateAction::SetAllowExplicit(allow_explicit) => {
+                    next.allow_explicit = allow_explicit;
+                }
                 StateAction::SetSearchQuery(query) => {
                     if next.search_query != query {
                         next.search_query = query;
@@ -182,6 +212,9 @@ impl State {
                             .insert(pk, Arc::new(image));
                     }
                 }
+                StateAction::SetLoading(loading) => {
+                    next.loading = loading;
+                }
             }
         }
 
@@ -202,7 +235,6 @@ impl State {
     }
 }
 
-#[derive(Clone)]
 pub struct CurrentState(Arc<RwLock<Arc<State>>>, Sender<Vec<StateAction>>);
 
 impl std::fmt::Debug for CurrentState {

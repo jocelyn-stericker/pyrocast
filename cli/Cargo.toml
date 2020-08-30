@@ -1,5 +1,5 @@
 [package]
-name = "state"
+name = "cli"
 version = "0.1.0"
 authors = ["Joshua Netterfield <joshua@nettek.ca>"]
 edition = "2018"
@@ -7,7 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crossbeam-channel = "0.4.3"
-futures = "0.3.5"
-surf = { version ="2.0.0-alpha.4", features = ["h1-client"], default-features = false }
-serde-xml-rs = "0.4.0"
+loader = { path = "../loader" }
+state = { path = "../state" }
+async-std = "1.6.2"

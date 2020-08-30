@@ -28,6 +28,18 @@ impl Episode {
         self
     }
 
+    pub fn channel(&self) -> ChannelRef {
+        ChannelRef {
+            pk: self.pk.clone(),
+            state: self.state.clone(),
+        }
+    }
+
+    pub fn with_channel(mut self, channel: String) -> Self {
+        self.channel = channel;
+        self
+    }
+
     pub fn title(&self) -> &str {
         &self.title
     }
@@ -82,13 +94,6 @@ impl Episode {
         self
     }
 
-    pub fn channel(&self) -> ChannelRef {
-        ChannelRef {
-            pk: self.pk.clone(),
-            state: self.state.clone(),
-        }
-    }
-
     pub fn image(&self) -> Option<Arc<Result<Image, StateError>>> {
         let state = self.state.upgrade()?.get();
 
@@ -113,8 +118,8 @@ impl Episode {
         fallback
     }
 
-    pub fn with_image(mut self, image: String) -> Self {
-        self.image = Some(image);
+    pub fn with_image(mut self, image: Option<String>) -> Self {
+        self.image = image;
         self
     }
 

@@ -1,4 +1,4 @@
-use crate::{ChannelCore, CurrentState, Episode, EpisodeRef, StateAction, StateError};
+use crate::{ChannelCore, CurrentState, EpisodeRef, StateAction, StateError};
 use std::sync::{Arc, Weak};
 
 #[derive(Debug, Clone, Default)]
@@ -8,6 +8,7 @@ pub struct ChannelDetail {
     pk: String,
 
     description: String,
+    link: String,
     episodes: Vec<EpisodeRef>,
 }
 
@@ -30,16 +31,25 @@ impl ChannelDetail {
         self
     }
 
+    pub fn link(&self) -> &str {
+        &self.link
+    }
+
+    pub fn with_link(mut self, link: String) -> Self {
+        self.link = link;
+        self
+    }
+
     pub fn episodes(&self) -> &[EpisodeRef] {
         &self.episodes
     }
 
-    pub fn with_episodes(mut self, episodes: &[Episode]) -> Self {
+    pub fn with_episodes(mut self, episodes: &[String]) -> Self {
         self.episodes = episodes
             .iter()
             .map(|episode| EpisodeRef {
                 state: Weak::clone(&self.state),
-                pk: String::from(episode.pk()),
+                pk: String::from(episode),
             })
             .collect();
 
