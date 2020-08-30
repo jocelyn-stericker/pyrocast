@@ -10,6 +10,7 @@ mod channel_ref;
 mod episode;
 mod episode_ref;
 mod image;
+mod player_state;
 mod state_error;
 
 pub use channel_core::ChannelCore;
@@ -18,6 +19,7 @@ pub use channel_ref::ChannelRef;
 pub use episode::Episode;
 pub use episode_ref::EpisodeRef;
 pub use image::Image;
+pub use player_state::{Playback, PlayerState};
 pub use state_error::StateError;
 
 #[derive(Debug)]
@@ -36,6 +38,7 @@ pub enum StateAction {
     SetEpisode(String, Result<Episode, StateError>),
     SetImage(String, Result<Image, StateError>),
     SetLoading(bool),
+    SetPlayerState(Option<PlayerState>),
 }
 
 pub(crate) type AMap<T> = Arc<HashMap<String, Arc<Result<T, StateError>>>>;
@@ -57,6 +60,7 @@ pub struct State {
     pub(crate) channel_detail: AMap<ChannelDetail>,
     pub(crate) episodes: AMap<Episode>,
     pub(crate) images: AMap<Image>,
+    pub(crate) player_state: Arc<Option<PlayerState>>,
 
     pub(crate) loading: bool,
 }
@@ -98,6 +102,10 @@ impl State {
         Episode::default().with_current(Weak::clone(&self.current))
     }
 
+    pub fn player_state(&self) -> Option<&PlayerState> {
+        self.player_state.as_ref().as_ref()
+    }
+
     fn references_channel(&self, channel: &str) -> bool {
         matches!(&self.search_focus, Some(search_focus) if search_focus.pk == channel)
             || self
@@ -133,6 +141,7 @@ impl State {
             episodes: Default::default(),
             images: Default::default(),
             loading: true,
+            player_state: Arc::new(Option::None),
         }
     }
 
@@ -214,6 +223,9 @@ impl State {
                 }
                 StateAction::SetLoading(loading) => {
                     next.loading = loading;
+                }
+                StateAction::SetPlayerState(player_state) => {
+                    next.player_state = Arc::new(player_state);
                 }
             }
         }

@@ -1,5 +1,5 @@
 [package]
-name = "cli"
+name = "player"
 version = "0.1.0"
 authors = ["Joshua Netterfield <joshua@nettek.ca>"]
 edition = "2018"
@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-loader = { path = "../loader" }
+gstreamer = "0.16.2"
+gstreamer-player = "0.16.0"
+glib = "0.10.1"
 state = { path = "../state" }
-player = { path = "../player" }
-async-std = "1.6.2"
