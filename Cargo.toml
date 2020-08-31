@@ -3,5 +3,7 @@ members = [
   "state",
   "loader",
   "cli",
-  "player"
+  "player",
+  "app"
 ]
+default-members = ["app"]

@@ -28,6 +28,7 @@ pub enum StateAction {
     SetAllowExplicit(bool),
 
     SetSearchQuery(String),
+    SetSearchFocus(Option<ChannelRef>),
     SetSearchFeed {
         query: String,
         results: Result<Vec<String>, StateError>,
@@ -82,8 +83,8 @@ impl State {
         self.search_focus.as_ref()
     }
 
-    pub fn search_results(&self) -> Result<&Vec<ChannelRef>, &StateError> {
-        Result::as_ref(&self.search_results)
+    pub fn search_results(&self) -> Arc<Result<Vec<ChannelRef>, StateError>> {
+        Arc::clone(&self.search_results)
     }
 
     pub fn loading(&self) -> bool {
@@ -128,7 +129,7 @@ impl State {
         })
     }
 
-    fn new() -> Self {
+    pub fn new() -> Self {
         State {
             current: Weak::new(),
             country: String::from("CA"),
@@ -172,6 +173,9 @@ impl State {
                         next.search_query = query;
                         next.search_results = Arc::new(Result::Err(StateError::Loading));
                     }
+                }
+                StateAction::SetSearchFocus(focus) => {
+                    next.search_focus = focus;
                 }
                 StateAction::SetSearchFeed { query, results } => {
                     if next.search_query == query {
@@ -244,6 +248,12 @@ impl State {
         }
 
         next
+    }
+}
+
+impl Default for State {
+    fn default() -> Self {
+        State::new()
     }
 }
 
@@ -332,8 +342,8 @@ mod tests {
         while wait_for_update.try_next().is_err() {}
         assert_eq!(current_state.get().search_query(), "This American Life");
         assert_eq!(
-            current_state.get().search_results(),
-            Err(&StateError::Loading)
+            current_state.get().search_results().as_ref(),
+            &Err(StateError::Loading)
         );
 
         current_state.update(vec![
@@ -357,7 +367,8 @@ mod tests {
         while wait_for_update.try_next().is_err() {}
 
         let state = current_state.get();
-        let search = state.search_results().unwrap();
+        let search = state.search_results();
+        let search = Result::as_ref(&search).unwrap();
         let core = search.get(0).unwrap().core();
         let core = core.as_deref();
         assert_eq!(

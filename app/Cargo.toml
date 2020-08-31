@@ -1,0 +1,18 @@
+[package]
+name = "app"
+version = "0.1.0"
+authors = ["Joshua Netterfield <joshua@nettek.ca>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-std = "1.6.2"
+libhandy = "0.6.0"
+pango = "0.9.0"
+pretty_env_logger = "0.4.0"
+vgtk = "0.3.0"
+loader = { path = "../loader" }
+state = { path = "../state" }
+player = { path = "../player" }
+xml-rs = "0.8.3"
