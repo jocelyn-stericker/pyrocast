@@ -111,7 +111,19 @@ impl ChannelCore {
             .as_ref()
             .and_then(|url| state.images.get(url))
         {
-            return Some(Arc::clone(image_rss));
+            if image_rss.is_err() {
+                fallback = Some(Arc::clone(image_rss));
+            } else {
+                return Some(Arc::clone(image_rss));
+            }
+        }
+
+        if let Some(image_200) = self
+            .image_200
+            .as_ref()
+            .and_then(|url| state.images.get(url))
+        {
+            return Some(Arc::clone(image_200));
         }
 
         fallback

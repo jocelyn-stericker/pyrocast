@@ -20,11 +20,13 @@ pub struct Props {
 #[derive(Debug, Default, Clone)]
 pub struct SearchDetail {
     props: Props,
+    episode_limit: usize,
 }
 
 #[derive(Clone, Debug)]
 pub enum Message {
     HandlePlay(usize),
+    HandleShowMore,
 }
 
 impl Component for SearchDetail {
@@ -47,10 +49,25 @@ impl Component for SearchDetail {
                 }
                 UpdateAction::None
             }
+            Message::HandleShowMore => {
+                self.episode_limit += 10;
+                UpdateAction::Render
+            }
+        }
+    }
+
+    fn create(props: Self::Properties) -> Self {
+        SearchDetail {
+            props,
+            episode_limit: 20,
         }
     }
 
     fn change(&mut self, props: Self::Properties) -> UpdateAction<Self> {
+        if props.podcast != self.props.podcast {
+            self.episode_limit = 20;
+        }
+
         self.props = props;
         UpdateAction::Render
     }
@@ -285,7 +302,7 @@ impl Component for SearchDetail {
                     <GtkBox border_width=10 valign=Align::Start hexpand=true orientation=Orientation::Vertical>
                         <ListBox border_width=10 valign=Align::Start hexpand=true selection_mode=SelectionMode::None>
                             {
-                                episodes.iter().enumerate().map(|(i, episode_ref)| {
+                                episodes.iter().take(self.episode_limit).enumerate().map(|(i, episode_ref)| {
                                     let episode = episode_ref.get();
                                     let episode = episode.as_deref().and_then(|episode| episode.as_ref().ok());
                                     let title = episode.map(|episode| episode.title()).unwrap_or_default();
@@ -339,6 +356,17 @@ impl Component for SearchDetail {
                                 })
                             }
                         </ListBox>
+                        {if episodes.len() > self.episode_limit {
+                            gtk! {
+                                <Button
+                                    label="Show more"
+                                    visible={episodes.len() > self.episode_limit}
+                                    on clicked=|_| Message::HandleShowMore
+                                />
+                            }
+                        } else {
+                            gtk! { <Label /> }
+                        }}
                     </GtkBox>
                 </GtkBox>
             }

@@ -31,6 +31,7 @@ pub enum Message {
     SetMobile(bool),
     SetTab(Tab),
     SetSearchDetail(Option<ChannelRef>),
+    SetSearchQuery(String),
 
     // External
     InitDispatch(Arc<CurrentState>),
@@ -87,6 +88,21 @@ impl Component for App {
                     if let Some(search) = search {
                         loader.queue(Query::ItunesLookup {
                             pk: search.pk().to_owned(),
+                        });
+                    }
+                }
+                UpdateAction::None
+            }
+            Message::SetSearchQuery(search) => {
+                if let Some(current) = &self.current {
+                    current.update(vec![StateAction::SetSearchQuery(search.clone())]);
+                }
+                if let Some(loader) = &self.loader {
+                    if search == "" {
+                        loader.queue(Query::ItunesChart);
+                    } else {
+                        loader.queue(Query::ItunesSearch {
+                            query: search.clone(),
                         });
                     }
                 }
@@ -215,7 +231,7 @@ impl Component for App {
                                     mobile=self.mobile
                                     on select_podcast=|podcast| Message::SetSearchDetail(podcast)
                                     // on play=|episode| Message::HandlePlay(episode)
-                                    // on search=|search| Message::HandleSearch(search)
+                                    on search=|search| Message::SetSearchQuery(search)
                                 />
                             </GtkBox>
                             <GtkBox
