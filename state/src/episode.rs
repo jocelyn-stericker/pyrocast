@@ -18,6 +18,22 @@ pub struct Episode {
     audio: String,
 }
 
+impl PartialEq for Episode {
+    fn eq(&self, other: &Episode) -> bool {
+        self.pk == other.pk
+            && self.channel == other.channel
+            && self.title == other.channel
+            && self.url == other.url
+            && self.date == other.date
+            && self.description == other.description
+            && self.duration == other.duration
+            && self.image == other.image
+            && self.audio == other.audio
+    }
+}
+
+impl Eq for Episode {}
+
 impl Episode {
     pub fn pk(&self) -> &str {
         &self.pk
@@ -30,7 +46,7 @@ impl Episode {
 
     pub fn channel(&self) -> ChannelRef {
         ChannelRef {
-            pk: self.pk.clone(),
+            pk: self.channel.clone(),
             state: self.state.clone(),
         }
     }

@@ -103,8 +103,16 @@ impl State {
         Episode::default().with_current(Weak::clone(&self.current))
     }
 
-    pub fn player_state(&self) -> Option<&PlayerState> {
-        self.player_state.as_ref().as_ref()
+    pub fn player_state(&self) -> Arc<Option<PlayerState>> {
+        self.player_state.clone()
+    }
+
+    pub fn playing_episode(&self) -> Option<Arc<Result<Episode, StateError>>> {
+        self.player_state
+            .as_ref()
+            .as_ref()
+            .and_then(|player_state| self.episodes.get(&player_state.episode_pk))
+            .cloned()
     }
 
     fn references_channel(&self, channel: &str) -> bool {
@@ -113,6 +121,7 @@ impl State {
                 .search_results
                 .iter()
                 .any(|ok| ok.iter().any(|search_item| search_item.pk == channel))
+            || self.player_state.iter().any(|ok| ok.channel_pk == channel)
     }
 
     fn references_image(&self, image: &str) -> bool {

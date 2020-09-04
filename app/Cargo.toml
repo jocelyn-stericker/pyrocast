@@ -8,11 +8,12 @@ edition = "2018"
 
 [dependencies]
 async-std = "1.6.2"
+chrono = "0.4.15"
 libhandy = "0.6.0"
-pango = "0.9.0"
-pretty_env_logger = "0.4.0"
-vgtk = "0.3.0"
 loader = { path = "../loader" }
-state = { path = "../state" }
+pango = "0.9.0"
 player = { path = "../player" }
+pretty_env_logger = "0.4.0"
+state = { path = "../state" }
+vgtk = "0.3.0"
 xml-rs = "0.8.3"

@@ -4,6 +4,7 @@
 mod app;
 mod fixed_image;
 mod home_tab;
+mod now_playing;
 mod preferred_size;
 mod search_detail;
 mod search_results;
@@ -28,9 +29,11 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
     task::spawn(async move {
         let loader = Loader::new(current.clone(), 10);
-        scope.send_message(Message::InitLoaderWIP(loader.clone()));
-
         loader.queue(Query::ItunesChart {});
+
+        let player = player::new_player(current.clone());
+
+        scope.send_message(Message::InitLoaderWIP(loader.clone(), player));
 
         while waiter.next().await.is_some() {
             scope.send_message(Message::StateChanged(current.get()));

@@ -1,4 +1,5 @@
 use crate::home_tab::HomeTab;
+use crate::now_playing::NowPlaying;
 use crate::search_tab::SearchTab;
 use crate::settings_tab::SettingsTab;
 use crate::vgtk_ext::*;
@@ -7,7 +8,9 @@ use libhandy::{
     ViewSwitcherBarExt, ViewSwitcherExt, ViewSwitcherPolicy,
 };
 use loader::{Loader, Query};
-use state::{ChannelRef, CurrentState, State, StateAction};
+use player::PlayerAction;
+use state::{ChannelRef, CurrentState, EpisodeRef, Image as ImageObj, State, StateAction};
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use vgtk::lib::gio::ApplicationFlags;
 use vgtk::lib::gtk::{
@@ -33,9 +36,18 @@ pub enum Message {
     SetSearchDetail(Option<ChannelRef>),
     SetSearchQuery(String),
 
+    // Playback
+    HandlePlay(EpisodeRef),
+    HandleSkipBack,
+    HandleSkipForward,
+    HandlePause,
+    HandleUnpause,
+    HandleSeek(u64),
+    HandleRateChange(f64),
+
     // External
     InitDispatch(Arc<CurrentState>),
-    InitLoaderWIP(Loader),
+    InitLoaderWIP(Loader, Sender<PlayerAction>),
     StateChanged(Arc<State>),
 }
 
@@ -52,6 +64,7 @@ pub struct App {
     state: Arc<State>,
     current: Option<Arc<CurrentState>>,
     loader: Option<Loader>,
+    player: Option<Sender<PlayerAction>>,
 }
 
 impl App {}
@@ -101,10 +114,89 @@ impl Component for App {
                     if search == "" {
                         loader.queue(Query::ItunesChart);
                     } else {
-                        loader.queue(Query::ItunesSearch {
-                            query: search.clone(),
-                        });
+                        loader.queue(Query::ItunesSearch { query: search });
                     }
+                }
+                UpdateAction::None
+            }
+
+            // Playback
+            Message::HandlePlay(episode) => {
+                if let (Some(player), Some(Ok(episode))) = (&self.player, episode.get().as_deref())
+                {
+                    player
+                        .send(PlayerAction::PlayRemote {
+                            episode_pk: episode.pk().to_owned(),
+                            channel_pk: episode.channel().pk().to_owned(),
+                            uri: episode.audio().to_owned(),
+                        })
+                        .unwrap();
+
+                    if let (Some(image), Some(loader)) = (&episode.image(), &self.loader) {
+                        if let Ok(image) = image.as_ref() {
+                            if !image.loaded() {
+                                loader.queue(Query::Image {
+                                    image: Arc::new(ImageObj::new(&image.pk)),
+                                    associated_query: None,
+                                });
+                            }
+                        }
+                    }
+                }
+
+                UpdateAction::None
+            }
+            Message::HandleSkipBack => {
+                let time = self
+                    .state
+                    .player_state()
+                    .as_ref()
+                    .as_ref()
+                    .map(|state| state.time)
+                    .unwrap_or_default() as i64;
+
+                if let Some(player) = &self.player {
+                    player
+                        .send(PlayerAction::SetTime((time - 15).max(0) as u64))
+                        .unwrap();
+                }
+                UpdateAction::None
+            }
+            Message::HandleSkipForward => {
+                let time = self
+                    .state
+                    .player_state()
+                    .as_ref()
+                    .as_ref()
+                    .map(|state| state.time)
+                    .unwrap_or_default();
+
+                if let Some(player) = &self.player {
+                    player.send(PlayerAction::SetTime(time + 30)).unwrap();
+                }
+                UpdateAction::None
+            }
+            Message::HandlePause => {
+                if let Some(player) = &self.player {
+                    player.send(PlayerAction::Pause).unwrap();
+                }
+                UpdateAction::None
+            }
+            Message::HandleUnpause => {
+                if let Some(player) = &self.player {
+                    player.send(PlayerAction::Unpause).unwrap();
+                }
+                UpdateAction::None
+            }
+            Message::HandleSeek(t) => {
+                if let Some(player) = &self.player {
+                    player.send(PlayerAction::SetTime(t)).unwrap();
+                }
+                UpdateAction::None
+            }
+            Message::HandleRateChange(rate) => {
+                if let Some(player) = &self.player {
+                    player.send(PlayerAction::SetRate(rate)).unwrap();
                 }
                 UpdateAction::None
             }
@@ -114,8 +206,9 @@ impl Component for App {
                 self.current = Some(current);
                 UpdateAction::None
             }
-            Message::InitLoaderWIP(loader) => {
+            Message::InitLoaderWIP(loader, player) => {
                 self.loader = Some(loader);
+                self.player = Some(player);
                 UpdateAction::None
             }
             Message::StateChanged(state) => {
@@ -210,6 +303,16 @@ impl Component for App {
                                 Stack::selected=tab == Tab::NowPlaying
                                 Stack::name="pyrocast_tab_playing"
                             >
+                                <@NowPlaying
+                                    player_state=self.state.player_state()
+                                    episode_info=self.state.playing_episode()
+                                    on skip_back=|_| Message::HandleSkipBack
+                                    on skip_forward=|_| Message::HandleSkipForward
+                                    on pause=|_| Message::HandlePause
+                                    on unpause=|_| Message::HandleUnpause
+                                    on seek=|t| Message::HandleSeek(t)
+                                    on rate_change=|rate| Message::HandleRateChange(rate)
+                                />
                             </GtkBox>
                             <GtkBox
                                 Stack::title="Home"
@@ -230,7 +333,7 @@ impl Component for App {
                                     selected_podcast=self.state.search_focus().cloned()
                                     mobile=self.mobile
                                     on select_podcast=|podcast| Message::SetSearchDetail(podcast)
-                                    // on play=|episode| Message::HandlePlay(episode)
+                                    on play=|episode| Message::HandlePlay(episode)
                                     on search=|search| Message::SetSearchQuery(search)
                                 />
                             </GtkBox>
