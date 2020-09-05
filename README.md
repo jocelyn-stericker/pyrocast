@@ -12,8 +12,13 @@ Features:
 
 You need to have [Rust installed](https://www.rust-lang.org/learn/get-started).
 
-You also need to have headers for gtk and gstreamer installed, as well as gst-plugins-bad.
+You also need to have headers for gtk, libhandy, and gstreamer installed, as well as gst-plugins-bad.
 The instructions for doing so vary by OS (please feel free to add specifics here).
+In Ubuntu 20.04:
+
+```
+sudo apt-get install -y libgtk-3-dev libgstreamer1.0-dev libgstreamer-plugins-bad1.0-dev libhandy-0.0-dev
+```
 
 To build & run,
 
@@ -30,7 +35,7 @@ Here's what worked for me with [the unofficial Arch Linux ARM for Pinephone](htt
  - Get it to build on the phone.
  - Copy everything over: `rsync -avz joshua@192.168.0.48:/ /home/joshua/pine-sysroot`
 
-Then, build it. I recommend building it in release mode to minimize the size of the binary you need to copy over
+Then, build it. I recommend building it in release mode to minimize the size of the binary you need to copy over.
 ```
 env CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
 	CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER="/linux-runner aarch64" \
