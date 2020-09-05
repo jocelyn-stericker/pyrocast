@@ -157,7 +157,7 @@ impl Component for App {
 
                 if let Some(player) = &self.player {
                     player
-                        .send(PlayerAction::SetTime((time - 15).max(0) as u64))
+                        .send(PlayerAction::SetTime((time - 15000).max(0) as u64))
                         .unwrap();
                 }
                 UpdateAction::None
@@ -172,7 +172,7 @@ impl Component for App {
                     .unwrap_or_default();
 
                 if let Some(player) = &self.player {
-                    player.send(PlayerAction::SetTime(time + 30)).unwrap();
+                    player.send(PlayerAction::SetTime(time + 30000)).unwrap();
                 }
                 UpdateAction::None
             }

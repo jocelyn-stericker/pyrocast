@@ -67,6 +67,9 @@ fn audio_thread(recv: Receiver<PlayerAction>, current: Arc<CurrentState>) {
         *gplayer_state_clone.lock().unwrap() = state;
     });
 
+    // Time is 0 while buffering.
+    let mut last_known_time = 0;
+
     loop {
         match recv.recv_timeout(Duration::from_millis(100)) {
             Ok(PlayerAction::PlayRemote {
@@ -88,6 +91,7 @@ fn audio_thread(recv: Receiver<PlayerAction>, current: Arc<CurrentState>) {
                 player.play();
             }
             Ok(PlayerAction::SetTime(t)) => {
+                last_known_time = t;
                 player.seek(ClockTime::from_mseconds(t));
             }
             Ok(PlayerAction::SetRate(next_rate)) => {
@@ -104,17 +108,23 @@ fn audio_thread(recv: Receiver<PlayerAction>, current: Arc<CurrentState>) {
             }
         }
 
+        let playback = match *gplayer_state.lock().unwrap() {
+            GPlayerState::Playing => Playback::Playing,
+            GPlayerState::Stopped => Playback::Stopped,
+            GPlayerState::Paused => Playback::Paused,
+            GPlayerState::Buffering => Playback::Buffering,
+            _ => Playback::Buffering,
+        };
+
+        if playback != Playback::Buffering {
+            last_known_time = player.get_position().mseconds().unwrap_or(0);
+        }
+
         current.update(vec![StateAction::SetPlayerState(Some(PlayerState {
             episode_pk: episode_pk.clone(),
             channel_pk: channel_pk.clone(),
-            playback: match *gplayer_state.lock().unwrap() {
-                GPlayerState::Playing => Playback::Playing,
-                GPlayerState::Stopped => Playback::Stopped,
-                GPlayerState::Paused => Playback::Paused,
-                GPlayerState::Buffering => Playback::Buffering,
-                _ => Playback::Buffering,
-            },
-            time: player.get_position().mseconds().unwrap_or(0),
+            playback,
+            time: last_known_time,
             duration: player.get_duration().mseconds().unwrap_or(0),
             rate: player.get_rate(),
         }))]);

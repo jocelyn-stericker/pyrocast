@@ -6,8 +6,8 @@ use state::{ChannelRef, StateError};
 use std::sync::Arc;
 use vgtk::lib::gdk_pixbuf::Pixbuf;
 use vgtk::lib::gtk::{
-    prelude::*, Box, FlowBox, FlowBoxChild, Label, Orientation, ScrolledWindow, SelectionMode,
-    Spinner,
+    prelude::*, Align, Box, FlowBox, FlowBoxChild, Label, Orientation, ScrolledWindow,
+    SelectionMode, Spinner,
 };
 use vgtk::{gtk, Callback, Component, UpdateAction, VNode};
 
@@ -41,6 +41,10 @@ impl SearchResults {
                 gtk! {
                     <FlowBoxChild
                         FlowBox::selected=selected
+                        valign=Align::Start
+                        vexpand=false
+                        hexpand=true
+                        halign=Align::Fill
                         margin_bottom=10
                     >
                         <Box orientation=Orientation::Vertical>
@@ -57,6 +61,7 @@ impl SearchResults {
                                 max_width_chars=1
                                 ellipsize=EllipsizeMode::End
                                 hexpand=true
+                                halign=Align::Fill
                                 label=label
                             />
                         </Box>
@@ -121,9 +126,13 @@ impl Component for SearchResults {
                     <FlowBox
                         selection_mode=SelectionMode::Browse
                         border_width=10
-                        vexpand=false
+                        vexpand=true
+                        valign=Align::Fill
+                        hexpand=true
+                        halign=Align::Fill
                         min_children_per_line=2
                         max_children_per_line=6
+                        homogeneous=true
                         on selected_children_changed=|flow_box| {
                             Message::HandleSelectPodcast(
                                 flow_box

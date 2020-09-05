@@ -225,6 +225,14 @@ impl Rss {
             .replace_all(&feed.channel.fallback_description, "")
             .to_string();
 
+        // HACK: same thing for episode descriptions
+        for ep in &mut feed.channel.episodes {
+            if let Some(description) = &mut ep.description {
+                *description = detag.replace_all(description, "").to_string();
+            }
+            ep.fallback_description = detag.replace_all(&ep.fallback_description, "").to_string();
+        }
+
         feed.channel.pk = pk;
         feed.channel.self_url = url;
 

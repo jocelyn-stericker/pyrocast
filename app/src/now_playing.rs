@@ -163,8 +163,6 @@ impl Component for NowPlaying {
                                 xalign=0.0
                                 halign=Align::Fill
                                 valign=Align::Start
-                                lines=7
-                                ellipsize=EllipsizeMode::End
                             />
                             <ComboBoxText
                                 hexpand=false
@@ -233,7 +231,15 @@ impl Component for NowPlaying {
                                         }
                                     }
                                     Playback::Buffering => {
-                                        gtk! { <Spinner /> }
+                                        gtk! {
+                                            <Spinner
+                                                property_width_request=80
+                                                on size_allocate=|s, _| {
+                                                    s.start();
+                                                    Message::None
+                                                }
+                                            />
+                                        }
                                     }
                                     Playback::Paused => {
                                         gtk! {

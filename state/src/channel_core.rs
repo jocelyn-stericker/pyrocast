@@ -18,6 +18,20 @@ pub struct ChannelCore {
     rss: Option<String>,
 }
 
+impl PartialEq for ChannelCore {
+    fn eq(&self, other: &ChannelCore) -> bool {
+        self.pk == other.pk
+            && self.title == other.title
+            && self.author == other.author
+            && self.image_200 == other.image_200
+            && self.image_600 == other.image_600
+            && self.image_rss == other.image_rss
+            && self.rss == other.image_rss
+    }
+}
+
+impl Eq for ChannelCore {}
+
 impl ChannelCore {
     pub fn pk(&self) -> &str {
         &self.pk

@@ -1,8 +1,10 @@
 use crate::fixed_image::FixedImage;
+use chrono::{naive::NaiveTime, DateTime};
 use libhandy::{Column, ColumnExt, Squeezer, SqueezerExt};
 use pango::EllipsizeMode;
 use pango::{AttrList, Attribute, Variant, Weight};
-use state::{ChannelRef, EpisodeRef};
+use state::{ChannelCore, ChannelDetail, ChannelRef, EpisodeRef, StateError};
+use std::sync::Arc;
 use vgtk::lib::gtk::{
     prelude::*, Align, Box as GtkBox, Button, Label, ListBox, ListBoxRow, Orientation,
     ScrolledWindow, SelectionMode, Viewport,
@@ -21,6 +23,9 @@ pub struct Props {
 pub struct SearchDetail {
     props: Props,
     episode_limit: usize,
+
+    prev_core: Option<Arc<Result<ChannelCore, StateError>>>,
+    prev_detail: Option<Arc<Result<ChannelDetail, StateError>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -37,11 +42,9 @@ impl Component for SearchDetail {
         match message {
             Message::HandlePlay(idx) => {
                 if let Some(channel) = &self.props.podcast {
-                    let details = channel.details();
-                    let details = details.as_deref().and_then(|channel| channel.as_ref().ok());
-                    let episodes = details
-                        .map(|channel| channel.episodes())
-                        .unwrap_or_default();
+                    let detail = channel.details();
+                    let detail = detail.as_deref().and_then(|channel| channel.as_ref().ok());
+                    let episodes = detail.map(|channel| channel.episodes()).unwrap_or_default();
 
                     if let Some(episode) = episodes.get(idx) {
                         self.props.on_play.send(episode.clone());
@@ -60,16 +63,55 @@ impl Component for SearchDetail {
         SearchDetail {
             props,
             episode_limit: 20,
+            prev_core: None,
+            prev_detail: None,
         }
     }
 
     fn change(&mut self, props: Self::Properties) -> UpdateAction<Self> {
+        // Do we need to rerender?
+        // TODO: this is super ugly! How can we make this better?
         if props.podcast != self.props.podcast {
             self.episode_limit = 20;
-        }
+            self.prev_core = props.podcast.as_ref().and_then(|pod| pod.core());
+            self.prev_detail = props.podcast.as_ref().and_then(|pod| pod.details());
+            self.props = props;
+            UpdateAction::Render
+        } else {
+            let next_core = props.podcast.as_ref().and_then(|pod| pod.core());
+            let next_detail = props.podcast.as_ref().and_then(|pod| pod.details());
+            let mut changed = false;
 
-        self.props = props;
-        UpdateAction::Render
+            if let (Some(prev_core), Some(next_core)) = (&self.prev_core, &next_core) {
+                if !Arc::ptr_eq(prev_core, next_core) {
+                    changed = true;
+                }
+            } else if self.prev_core.is_some() != next_core.is_some() {
+                changed = true;
+            }
+
+            if let (Some(prev_detail), Some(next_detail)) = (&self.prev_detail, &next_detail) {
+                if !Arc::ptr_eq(prev_detail, next_detail) {
+                    changed = true
+                }
+            } else if self.prev_detail.is_some() != next_detail.is_some() {
+                changed = true
+            }
+
+            if changed {
+                self.prev_core = props.podcast.as_ref().and_then(|pod| pod.core());
+                self.prev_detail = props.podcast.as_ref().and_then(|pod| pod.details());
+                self.props = props;
+                return UpdateAction::Render;
+            }
+
+            if props.mobile != self.props.mobile {
+                self.props = props;
+                UpdateAction::Render
+            } else {
+                UpdateAction::None
+            }
+        }
     }
 
     fn view(&self) -> VNode<SearchDetail> {
@@ -307,7 +349,19 @@ impl Component for SearchDetail {
                                     let episode = episode.as_deref().and_then(|episode| episode.as_ref().ok());
                                     let title = episode.map(|episode| episode.title()).unwrap_or_default();
                                     let date = episode.map(|episode| episode.date()).unwrap_or_default();
+                                    let date = DateTime::parse_from_rfc2822(date).map(|date| date.format("%F").to_string()).unwrap_or_default();
                                     let duration = episode.map(|episode| episode.duration()).unwrap_or_default();
+                                    let duration = if duration.contains(":") {
+                                        duration.to_owned()
+                                    } else {
+                                        let seconds = duration.parse::<u32>().unwrap_or(0);
+                                        let time = NaiveTime::from_num_seconds_from_midnight(seconds, 0);
+                                        if seconds >= 3600 {
+                                            time.format("%T").to_string()
+                                        } else {
+                                            time.format("%M∶%S").to_string()
+                                        }
+                                    };
                                     let description = episode.map(|episode| episode.description()).unwrap_or_default();
 
                                     gtk! {
