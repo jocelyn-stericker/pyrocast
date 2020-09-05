@@ -3,6 +3,7 @@ use gstreamer::prelude::*;
 use gstreamer::ClockTime;
 use gstreamer_player as gplayer;
 use gstreamer_player::PlayerState as GPlayerState;
+use mpris_player::{MprisPlayer, OrgMprisMediaPlayer2Player, PlaybackStatus};
 use state::{CurrentState, Playback, PlayerState, StateAction};
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
@@ -17,11 +18,62 @@ pub enum PlayerAction {
     },
     Pause,
     Unpause,
+    SeekForward,
+    SeekBack,
     SetTime(u64),
     SetRate(f64),
 }
 
-fn audio_thread(recv: Receiver<PlayerAction>, current: Arc<CurrentState>) {
+fn init_mpris(send: Sender<PlayerAction>) -> Arc<MprisPlayer> {
+    let mpris = MprisPlayer::new(
+        "ca.nettek.pyrocast".to_owned(),
+        "Pyrocast".to_owned(),
+        "ca.nettek.pyrocast.desktop".to_owned(),
+    );
+    mpris.set_can_raise(true);
+    mpris.set_can_play(true);
+    mpris.set_can_seek(true);
+    mpris.set_can_set_fullscreen(true);
+
+    let mpris_clone = mpris.clone();
+    let send_clone = send.clone();
+    mpris.connect_play_pause(move || {
+        if let Ok(status) = mpris_clone.get_playback_status() {
+            match status.as_ref() {
+                "Paused" | "Stopped" => send_clone.send(PlayerAction::Unpause).unwrap(),
+                _ => send_clone.send(PlayerAction::Pause).unwrap(),
+            };
+        }
+    });
+
+    let send_clone = send.clone();
+    mpris.connect_play(move || {
+        send_clone.send(PlayerAction::Unpause).unwrap();
+    });
+
+    let send_clone = send.clone();
+    mpris.connect_pause(move || {
+        send_clone.send(PlayerAction::Pause).unwrap();
+    });
+
+    let send_clone = send.clone();
+    mpris.connect_next(move || {
+        send_clone.send(PlayerAction::SeekForward).unwrap();
+    });
+
+    let send_clone = send;
+    mpris.connect_previous(move || {
+        send_clone.send(PlayerAction::SeekBack).unwrap();
+    });
+
+    mpris
+}
+
+fn audio_thread(
+    send: Sender<PlayerAction>,
+    recv: Receiver<PlayerAction>,
+    current: Arc<CurrentState>,
+) {
     gst::init().unwrap();
 
     // TODO: can we reuse vgtk's loop?
@@ -58,6 +110,11 @@ fn audio_thread(recv: Receiver<PlayerAction>, current: Arc<CurrentState>) {
 
     let rate_clone = Arc::clone(&rate);
     let gplayer_state_clone = Arc::clone(&gplayer_state);
+
+    let for_mpris = Arc::new(Mutex::new(Some(send)));
+    let to_mpris = Arc::new(Mutex::new(None));
+
+    let to_mpris_clone = to_mpris.clone();
     player.connect_state_changed(move |player, state| {
         let rate = rate_clone.lock().unwrap();
         if state == GPlayerState::Playing && (*rate - player.get_rate()).abs() > std::f64::EPSILON {
@@ -65,6 +122,41 @@ fn audio_thread(recv: Receiver<PlayerAction>, current: Arc<CurrentState>) {
         }
 
         *gplayer_state_clone.lock().unwrap() = state;
+
+        let mut for_mpris = for_mpris.lock().unwrap();
+
+        if let Some(send) = for_mpris.take() {
+            let mpris = init_mpris(send);
+            let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+
+            rx.attach(None, move |command| {
+                // TODO: command should be another type
+                // TODO: seek
+                // TODO: metadata
+                // TODO: stop
+                match command {
+                    PlayerAction::PlayRemote { .. } => {
+                        mpris.set_can_pause(true);
+                        mpris.set_can_play(true);
+                        mpris.set_can_go_next(true);
+                        mpris.set_can_go_previous(true);
+                        mpris.set_playback_status(PlaybackStatus::Playing);
+                    }
+                    PlayerAction::Pause => {
+                        mpris.set_playback_status(PlaybackStatus::Paused);
+                    }
+                    PlayerAction::Unpause => {
+                        mpris.set_playback_status(PlaybackStatus::Playing);
+                    }
+                    _ => {}
+                }
+
+                // Tell glib not to remove our callback
+                glib::Continue(true)
+            });
+
+            *to_mpris_clone.lock().unwrap() = Some(tx);
+        }
     });
 
     // Time is 0 while buffering.
@@ -83,12 +175,34 @@ fn audio_thread(recv: Receiver<PlayerAction>, current: Arc<CurrentState>) {
                 player.play();
                 episode_pk = new_episode_pk;
                 channel_pk = new_channel_pk;
+                if let Some(send) = &*to_mpris.lock().unwrap() {
+                    send.send(PlayerAction::PlayRemote {
+                        episode_pk: episode_pk.clone(),
+                        channel_pk: channel_pk.clone(),
+                        uri: uri.clone(),
+                    })
+                    .unwrap();
+                }
             }
             Ok(PlayerAction::Pause) => {
                 player.pause();
+                if let Some(send) = &*to_mpris.lock().unwrap() {
+                    send.send(PlayerAction::Pause).unwrap();
+                }
             }
             Ok(PlayerAction::Unpause) => {
                 player.play();
+                if let Some(send) = &*to_mpris.lock().unwrap() {
+                    send.send(PlayerAction::Unpause).unwrap();
+                }
+            }
+            Ok(PlayerAction::SeekForward) => {
+                last_known_time += 30000;
+                player.seek(ClockTime::from_mseconds(last_known_time));
+            }
+            Ok(PlayerAction::SeekBack) => {
+                last_known_time = ((last_known_time as i64) - 15000).max(0) as u64;
+                player.seek(ClockTime::from_mseconds(last_known_time));
             }
             Ok(PlayerAction::SetTime(t)) => {
                 last_known_time = t;
@@ -133,8 +247,9 @@ fn audio_thread(recv: Receiver<PlayerAction>, current: Arc<CurrentState>) {
 
 pub fn new_player(current: Arc<CurrentState>) -> Sender<PlayerAction> {
     let (send_cmd, recv_cmd) = channel();
+    let send_cmd_clone = send_cmd.clone();
     std::thread::spawn(move || {
-        audio_thread(recv_cmd, current);
+        audio_thread(send_cmd_clone, recv_cmd, current);
     });
 
     send_cmd

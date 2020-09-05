@@ -11,3 +11,4 @@ gstreamer = "0.16.2"
 gstreamer-player = "0.16.0"
 glib = "0.10.1"
 state = { path = "../state" }
+mpris-player = "0.6.0"
