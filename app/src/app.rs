@@ -250,6 +250,7 @@ impl Component for App {
                     title="Pyrocast"
                     default_width=600
                     default_height=800
+                    icon_name="pyrocast_512"
                 >
                     <HeaderBar
                         show_close_button=true
