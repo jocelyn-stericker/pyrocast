@@ -1,5 +1,7 @@
 # Pyrocast
 
+![Pyrocast logo](icon/logo_mark.png)
+
 > This is a **work in progress**. I currently recommend that you use [GNOME Podcasts](https://gitlab.gnome.org/World/podcasts).
 
 Pyrocast is a podcast app for Linux phones that use gtk.
