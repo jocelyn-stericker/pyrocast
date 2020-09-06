@@ -1,6 +1,6 @@
 # Pyrocast
 
-![Pyrocast logo](icon/logo_mark.png)
+![Pyrocast logo](https://github.com/jnetterf/pyrocast/blob/icon/icon/logo_mark.png)
 
 > This is a **work in progress**. I currently recommend that you use [GNOME Podcasts](https://gitlab.gnome.org/World/podcasts).
 
