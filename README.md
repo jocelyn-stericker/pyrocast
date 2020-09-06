@@ -1,4 +1,4 @@
-![Pyrocast logo](https://github.com/jnetterf/pyrocast/blob/icon/icon/logo_mark.png | height=160 )
+![Pyrocast logo](https://github.com/jnetterf/pyrocast/blob/icon/icon/logo_mark.png | height=160)
 
 > This is a **work in progress**. I currently recommend that you use [GNOME Podcasts](https://gitlab.gnome.org/World/podcasts).
 
