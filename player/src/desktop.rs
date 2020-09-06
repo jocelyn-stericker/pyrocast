@@ -65,12 +65,15 @@ pub(crate) fn init_desktop_connection(send: Sender<PlayerAction>) -> glib::Sende
                 if let Some(app) = gio::Application::get_default()
                     .and_then(|app| app.downcast::<gtk::Application>().ok())
                 {
-                    eprintln!("Inhibiting suspend");
-                    *inhibit_cookie.lock().unwrap() = Some(app.inhibit(
-                        app.get_active_window().as_ref(),
-                        ApplicationInhibitFlags::SUSPEND,
-                        Some("podcast playing"),
-                    ));
+                    let mut inhibit_cookie = inhibit_cookie.lock().unwrap();
+                    if inhibit_cookie.is_none() {
+                        eprintln!("Inhibiting suspend");
+                        *inhibit_cookie = Some(app.inhibit(
+                            app.get_active_window().as_ref(),
+                            ApplicationInhibitFlags::SUSPEND,
+                            Some("podcast playing"),
+                        ));
+                    }
                 }
                 let mut metadata = Metadata::new();
                 metadata.artist = Some(vec![artist]);
@@ -85,7 +88,8 @@ pub(crate) fn init_desktop_connection(send: Sender<PlayerAction>) -> glib::Sende
                 if let Some(app) = gio::Application::get_default()
                     .and_then(|app| app.downcast::<gtk::Application>().ok())
                 {
-                    if let Some(cookie) = inhibit_cookie.lock().unwrap().take() {
+                    let mut inhibit_cookie = inhibit_cookie.lock().unwrap();
+                    if let Some(cookie) = inhibit_cookie.take() {
                         eprintln!("Uninhibiting suspend");
                         app.uninhibit(cookie);
                     }
