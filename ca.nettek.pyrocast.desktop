@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Version=1.0
+Exec=pyrocast
+GenericName[en_US]=Podcast Manager
+GenericName=Podcast Manager
+Icon=pyrocast_512
+Name[en_US]=Pyrocast
+Name=Pyrocast
+Categories=AudioVideo;Audio;
+StartupNotify=true
+Type=Application
+Terminal=false

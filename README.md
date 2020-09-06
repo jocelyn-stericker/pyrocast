@@ -1,4 +1,4 @@
-# Pyrocast
+<img alt="Pyrocast logo" src="https://github.com/jnetterf/pyrocast/blob/master/icon/logo_mark.png" height="160" />
 
 > This is a **work in progress**. I currently recommend that you use [GNOME Podcasts](https://gitlab.gnome.org/World/podcasts).
 
@@ -51,12 +51,12 @@ env CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
 
 Then, copy it over (the `-C` uses compression, which can be much faster):
 ```
-scp -C ./target/aarch64-unknown-linux-gnu/release/app joshua@192.168.0.48:
+scp -C ./target/aarch64-unknown-linux-gnu/release/pyrocast joshua@192.168.0.48:
 ```
 
 On your phone, you can run it like:
 ```
-~joshua/app
+~joshua/pyrocast
 ```
 
 ## Contributing
