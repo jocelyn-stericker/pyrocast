@@ -1,9 +1,11 @@
+mod desktop;
+
+use crate::desktop::{init_desktop_connection, DesktopAction};
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer::ClockTime;
 use gstreamer_player as gplayer;
 use gstreamer_player::PlayerState as GPlayerState;
-use mpris_player::{MprisPlayer, OrgMprisMediaPlayer2Player, PlaybackStatus};
 use state::{CurrentState, Playback, PlayerState, StateAction};
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
@@ -22,51 +24,6 @@ pub enum PlayerAction {
     SeekBack,
     SetTime(u64),
     SetRate(f64),
-}
-
-fn init_mpris(send: Sender<PlayerAction>) -> Arc<MprisPlayer> {
-    let mpris = MprisPlayer::new(
-        "ca.nettek.pyrocast".to_owned(),
-        "Pyrocast".to_owned(),
-        "ca.nettek.pyrocast.desktop".to_owned(),
-    );
-    mpris.set_can_raise(true);
-    mpris.set_can_play(true);
-    mpris.set_can_seek(true);
-    mpris.set_can_set_fullscreen(true);
-
-    let mpris_clone = mpris.clone();
-    let send_clone = send.clone();
-    mpris.connect_play_pause(move || {
-        if let Ok(status) = mpris_clone.get_playback_status() {
-            match status.as_ref() {
-                "Paused" | "Stopped" => send_clone.send(PlayerAction::Unpause).unwrap(),
-                _ => send_clone.send(PlayerAction::Pause).unwrap(),
-            };
-        }
-    });
-
-    let send_clone = send.clone();
-    mpris.connect_play(move || {
-        send_clone.send(PlayerAction::Unpause).unwrap();
-    });
-
-    let send_clone = send.clone();
-    mpris.connect_pause(move || {
-        send_clone.send(PlayerAction::Pause).unwrap();
-    });
-
-    let send_clone = send.clone();
-    mpris.connect_next(move || {
-        send_clone.send(PlayerAction::SeekForward).unwrap();
-    });
-
-    let send_clone = send;
-    mpris.connect_previous(move || {
-        send_clone.send(PlayerAction::SeekBack).unwrap();
-    });
-
-    mpris
 }
 
 fn audio_thread(
@@ -103,18 +60,18 @@ fn audio_thread(
         audio_loop.run();
     });
 
-    let mut episode_pk: String = String::default();
-    let mut channel_pk: String = String::default();
+    let mut episode_pk = String::default();
+    let mut channel_pk = String::default();
     let rate = Arc::new(Mutex::new(1.0));
     let gplayer_state = Arc::new(Mutex::new(GPlayerState::Stopped));
 
     let rate_clone = Arc::clone(&rate);
     let gplayer_state_clone = Arc::clone(&gplayer_state);
 
-    let for_mpris = Arc::new(Mutex::new(Some(send)));
-    let to_mpris = Arc::new(Mutex::new(None));
+    let desktop_to_player = Arc::new(Mutex::new(Some(send)));
+    let player_to_desktop = Arc::new(Mutex::new(None));
 
-    let to_mpris_clone = to_mpris.clone();
+    let current_clone = current.clone();
     player.connect_state_changed(move |player, state| {
         let rate = rate_clone.lock().unwrap();
         if state == GPlayerState::Playing && (*rate - player.get_rate()).abs() > std::f64::EPSILON {
@@ -123,39 +80,39 @@ fn audio_thread(
 
         *gplayer_state_clone.lock().unwrap() = state;
 
-        let mut for_mpris = for_mpris.lock().unwrap();
+        let mut desktop_to_player = desktop_to_player.lock().unwrap();
+        if let Some(send) = desktop_to_player.take() {
+            let to_desktop = init_desktop_connection(send);
+            *player_to_desktop.lock().unwrap() = Some(to_desktop);
+        }
 
-        if let Some(send) = for_mpris.take() {
-            let mpris = init_mpris(send);
-            let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
-
-            rx.attach(None, move |command| {
-                // TODO: command should be another type
-                // TODO: seek
-                // TODO: metadata
-                // TODO: stop
-                match command {
-                    PlayerAction::PlayRemote { .. } => {
-                        mpris.set_can_pause(true);
-                        mpris.set_can_play(true);
-                        mpris.set_can_go_next(true);
-                        mpris.set_can_go_previous(true);
-                        mpris.set_playback_status(PlaybackStatus::Playing);
-                    }
-                    PlayerAction::Pause => {
-                        mpris.set_playback_status(PlaybackStatus::Paused);
-                    }
-                    PlayerAction::Unpause => {
-                        mpris.set_playback_status(PlaybackStatus::Playing);
-                    }
-                    _ => {}
-                }
-
-                // Tell glib not to remove our callback
-                glib::Continue(true)
-            });
-
-            *to_mpris_clone.lock().unwrap() = Some(tx);
+        if let Some(send) = &*player_to_desktop.lock().unwrap() {
+            match state {
+                GPlayerState::Playing => send
+                    .send(DesktopAction::Play {
+                        artist: current_clone
+                            .get()
+                            .playing_episode()
+                            .as_deref()
+                            .and_then(|ep| ep.as_ref().ok())
+                            .and_then(|ep| ep.channel().core())
+                            .as_deref()
+                            .and_then(|chan| chan.as_ref().ok())
+                            .map(|chan| chan.title().to_owned())
+                            .unwrap_or_default(),
+                        title: current_clone
+                            .get()
+                            .playing_episode()
+                            .as_deref()
+                            .and_then(|ep| ep.as_ref().ok())
+                            .map(|ep| ep.title().to_owned())
+                            .unwrap_or_default(),
+                    })
+                    .unwrap(),
+                GPlayerState::Paused => send.send(DesktopAction::Pause).unwrap(),
+                GPlayerState::Stopped => send.send(DesktopAction::Stop).unwrap(),
+                _ => {}
+            }
         }
     });
 
@@ -175,26 +132,12 @@ fn audio_thread(
                 player.play();
                 episode_pk = new_episode_pk;
                 channel_pk = new_channel_pk;
-                if let Some(send) = &*to_mpris.lock().unwrap() {
-                    send.send(PlayerAction::PlayRemote {
-                        episode_pk: episode_pk.clone(),
-                        channel_pk: channel_pk.clone(),
-                        uri: uri.clone(),
-                    })
-                    .unwrap();
-                }
             }
             Ok(PlayerAction::Pause) => {
                 player.pause();
-                if let Some(send) = &*to_mpris.lock().unwrap() {
-                    send.send(PlayerAction::Pause).unwrap();
-                }
             }
             Ok(PlayerAction::Unpause) => {
                 player.play();
-                if let Some(send) = &*to_mpris.lock().unwrap() {
-                    send.send(PlayerAction::Unpause).unwrap();
-                }
             }
             Ok(PlayerAction::SeekForward) => {
                 last_known_time += 30000;
