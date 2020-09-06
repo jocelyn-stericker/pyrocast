@@ -1708,9 +1708,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "player"
 version = "0.1.0"
 dependencies = [
+ "gio 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "glib 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "gstreamer 0.16.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "gstreamer-player 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gtk 0.9.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "mpris-player 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "state 0.1.0",
 ]
