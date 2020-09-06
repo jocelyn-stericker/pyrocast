@@ -23,7 +23,11 @@ use vgtk::lib::gio::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     pretty_env_logger::init();
+
     let (app, scope) = vgtk::start::<App>();
+
+    vgtk::lib::glib::set_prgname(Some("ca.nettek.pyrocast"));
+
     let (current, mut waiter) = CurrentState::new();
     scope.send_message(Message::InitDispatch(Arc::clone(&current)));
 
