@@ -34,12 +34,15 @@ pub enum StateAction {
         results: Result<Vec<String>, StateError>,
     },
 
+    SetHomeFocus(Option<ChannelRef>),
+
     SetChannelCore(String, Result<ChannelCore, StateError>),
     SetChannelDetail(String, Result<ChannelDetail, StateError>),
     SetEpisode(String, Result<Episode, StateError>),
     SetImage(String, Result<Image, StateError>),
     SetLoading(bool),
     SetPlayerState(Option<PlayerState>),
+    SetSubscriptions(Result<Vec<ChannelRef>, StateError>),
 }
 
 pub(crate) type AMap<T> = Arc<HashMap<String, Arc<Result<T, StateError>>>>;
@@ -55,6 +58,8 @@ pub struct State {
     pub(crate) search_query: String,
     pub(crate) search_focus: Option<ChannelRef>,
 
+    pub(crate) home_focus: Option<ChannelRef>,
+
     pub(crate) search_results: Arc<Result<Vec<ChannelRef>, StateError>>,
 
     pub(crate) channel_core: AMap<ChannelCore>,
@@ -62,6 +67,8 @@ pub struct State {
     pub(crate) episodes: AMap<Episode>,
     pub(crate) images: AMap<Image>,
     pub(crate) player_state: Arc<Option<PlayerState>>,
+
+    pub(crate) subscriptions: Arc<Result<Vec<ChannelRef>, StateError>>,
 
     pub(crate) loading: bool,
 }
@@ -87,6 +94,10 @@ impl State {
         Arc::clone(&self.search_results)
     }
 
+    pub fn home_focus(&self) -> Option<&ChannelRef> {
+        self.home_focus.as_ref()
+    }
+
     pub fn loading(&self) -> bool {
         self.loading
     }
@@ -107,6 +118,17 @@ impl State {
         self.player_state.clone()
     }
 
+    pub fn channel_ref(&self, pk: String) -> ChannelRef {
+        ChannelRef {
+            pk,
+            state: Weak::clone(&self.current),
+        }
+    }
+
+    pub fn subscriptions(&self) -> Arc<Result<Vec<ChannelRef>, StateError>> {
+        Arc::clone(&self.subscriptions)
+    }
+
     pub fn playing_episode(&self) -> Option<Arc<Result<Episode, StateError>>> {
         self.player_state
             .as_ref()
@@ -117,6 +139,7 @@ impl State {
 
     fn references_channel(&self, channel: &str) -> bool {
         matches!(&self.search_focus, Some(search_focus) if search_focus.pk == channel)
+            || matches!(&self.home_focus, Some(home_focus) if home_focus.pk == channel)
             || self
                 .search_results
                 .iter()
@@ -146,12 +169,14 @@ impl State {
             search_query: String::new(),
             search_focus: None,
             search_results: Arc::new(Result::Err(StateError::Loading)),
+            home_focus: None,
             channel_core: Default::default(),
             channel_detail: Default::default(),
             episodes: Default::default(),
             images: Default::default(),
             loading: true,
             player_state: Arc::new(Option::None),
+            subscriptions: Arc::new(Result::Err(StateError::Loading)),
         }
     }
 
@@ -199,6 +224,9 @@ impl State {
                         }));
                     }
                 }
+                StateAction::SetHomeFocus(focus) => {
+                    next.home_focus = focus;
+                }
 
                 StateAction::SetChannelCore(pk, mut core) => {
                     if next.references_channel(&pk) {
@@ -239,6 +267,9 @@ impl State {
                 }
                 StateAction::SetPlayerState(player_state) => {
                     next.player_state = Arc::new(player_state);
+                }
+                StateAction::SetSubscriptions(subscriptions) => {
+                    next.subscriptions = Arc::new(subscriptions);
                 }
             }
         }

@@ -16,7 +16,10 @@ use xml::escape::{escape_str_attribute, escape_str_pcdata};
 pub struct Props {
     pub podcast: Option<ChannelRef>,
     pub on_play: Callback<EpisodeRef>,
+    pub on_subscribe: Callback<ChannelRef>,
+    pub on_unsubscribe: Callback<ChannelRef>,
     pub mobile: bool,
+    pub subscribed: bool,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -32,6 +35,8 @@ pub struct SearchDetail {
 pub enum Message {
     HandlePlay(usize),
     HandleShowMore,
+    HandleSubscribe,
+    HandleUnsubscribe,
 }
 
 impl Component for SearchDetail {
@@ -55,6 +60,18 @@ impl Component for SearchDetail {
             Message::HandleShowMore => {
                 self.episode_limit += 10;
                 UpdateAction::Render
+            }
+            Message::HandleSubscribe => {
+                if let Some(podcast) = &self.props.podcast {
+                    self.props.on_subscribe.send(podcast.to_owned());
+                }
+                UpdateAction::None
+            }
+            Message::HandleUnsubscribe => {
+                if let Some(podcast) = &self.props.podcast {
+                    self.props.on_unsubscribe.send(podcast.to_owned());
+                }
+                UpdateAction::None
             }
         }
     }
@@ -80,33 +97,33 @@ impl Component for SearchDetail {
         } else {
             let next_core = props.podcast.as_ref().and_then(|pod| pod.core());
             let next_detail = props.podcast.as_ref().and_then(|pod| pod.details());
-            let mut changed = false;
+            let mut rerender = false;
 
             if let (Some(prev_core), Some(next_core)) = (&self.prev_core, &next_core) {
                 if !Arc::ptr_eq(prev_core, next_core) {
-                    changed = true;
+                    rerender = true;
                 }
             } else if self.prev_core.is_some() != next_core.is_some() {
-                changed = true;
+                rerender = true;
             }
 
             if let (Some(prev_detail), Some(next_detail)) = (&self.prev_detail, &next_detail) {
                 if !Arc::ptr_eq(prev_detail, next_detail) {
-                    changed = true
+                    rerender = true;
                 }
             } else if self.prev_detail.is_some() != next_detail.is_some() {
-                changed = true
+                rerender = true;
             }
 
-            if changed {
-                self.prev_core = props.podcast.as_ref().and_then(|pod| pod.core());
-                self.prev_detail = props.podcast.as_ref().and_then(|pod| pod.details());
-                self.props = props;
-                return UpdateAction::Render;
+            if self.props.subscribed != props.subscribed || self.props.mobile != props.mobile {
+                rerender = true;
             }
 
-            if props.mobile != self.props.mobile {
-                self.props = props;
+            self.prev_core = props.podcast.as_ref().and_then(|pod| pod.core());
+            self.prev_detail = props.podcast.as_ref().and_then(|pod| pod.details());
+            self.props = props;
+
+            if rerender {
                 UpdateAction::Render
             } else {
                 UpdateAction::None
@@ -342,6 +359,25 @@ impl Component for SearchDetail {
                     </Squeezer>
 
                     <GtkBox border_width=10 valign=Align::Start hexpand=true orientation=Orientation::Vertical>
+                        {
+                            if self.props.subscribed {
+                                gtk! {
+                                    <Button
+                                        on clicked=|_| Message::HandleUnsubscribe
+                                        label="Unsubscribe"
+                                        margin_bottom=10
+                                    />
+                                }
+                            } else {
+                                gtk! {
+                                    <Button
+                                        on clicked=|_| Message::HandleSubscribe
+                                        label="Subscribe"
+                                        margin_bottom=10
+                                    />
+                                }
+                            }
+                        }
                         <ListBox border_width=10 valign=Align::Start hexpand=true selection_mode=SelectionMode::None>
                             {
                                 episodes.iter().take(self.episode_limit).enumerate().map(|(i, episode_ref)| {

@@ -537,6 +537,16 @@ version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "database"
+version = "0.1.0"
+dependencies = [
+ "directories 3.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "loader 0.1.0",
+ "sqlite 0.25.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "state 0.1.0",
+]
+
+[[package]]
 name = "dbus"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -567,8 +577,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "directories"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "dirs-sys 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "dirs"
 version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_users 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.76 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1799,6 +1827,7 @@ version = "0.1.0"
 dependencies = [
  "async-std 1.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "database 0.1.0",
  "libhandy 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "loader 0.1.0",
  "pango 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2093,6 +2122,33 @@ dependencies = [
  "libc 0.2.76 (registry+https://github.com/rust-lang/crates.io-index)",
  "redox_syscall 0.1.57 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sqlite"
+version = "0.25.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sqlite3-sys 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sqlite3-src"
+version = "0.2.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cc 1.0.59 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pkg-config 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sqlite3-sys"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sqlite3-src 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2668,7 +2724,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum diff 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "0e25ea47919b1560c4e3b7fe0aaab9becf5b84a10325ddf7db0f0ba5e1026499"
 "checksum digest 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f3d0c8c8752312f9713efd397ff63acb9f85585afbf179282e720e7704954dd5"
 "checksum digest 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
+"checksum directories 3.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f8fed639d60b58d0f53498ab13d26f621fd77569cc6edb031f4cc36a2ad9da0f"
 "checksum dirs 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "3fd78930633bd1c6e35c4b42b1df7b0cbc6bc191146e512bb3bedf243fcc3901"
+"checksum dirs-sys 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "8e93d7f5705de3e49895a2b5e0b8855a1c27f080192ae9c32a6432d50741a57a"
 "checksum discard 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
 "checksum docopt 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7f525a586d310c87df72ebcd98009e57f1cc030c8c268305287a476beb653969"
 "checksum dtoa 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)" = "134951f4028bdadb9b84baf4232681efbf277da25144b9b0ad65df75946c422b"
@@ -2829,6 +2887,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum siphasher 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "fa8f3741c7372e75519bd9346068370c9cdaabcc1f9599cbcf2a2719352286b7"
 "checksum slab 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 "checksum socket2 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)" = "03088793f677dce356f3ccc2edb1b314ad191ab702a5de3faf49304f7e104918"
+"checksum sqlite 0.25.3 (registry+https://github.com/rust-lang/crates.io-index)" = "35f759dc2e373e1edd0a27da87aa9136416360c5077a23643fcd6fcdc9cb9e31"
+"checksum sqlite3-src 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)" = "b8bb25e66d026488228a97e0ad21e3d15ec5998dcd9ad73c97cc277c56a6b314"
+"checksum sqlite3-sys 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)" = "71fec807a1534bd13eeaaec396175d67c79bdc68df55e18a452726ec62a8fb08"
 "checksum stable_deref_trait 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 "checksum standback 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)" = "33a71ea1ea5f8747d1af1979bfb7e65c3a025a70609f04ceb78425bc5adad8e6"
 "checksum stdweb 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)" = "d022496b16281348b52d0e30ae99e01a73d737b2f45d38fed4edf79f9325a1d5"
