@@ -145,6 +145,10 @@ impl State {
                 .iter()
                 .any(|ok| ok.iter().any(|search_item| search_item.pk == channel))
             || self.player_state.iter().any(|ok| ok.channel_pk == channel)
+            || self
+                .subscriptions
+                .iter()
+                .any(|ok| ok.iter().any(|subscription| subscription.pk == channel))
     }
 
     fn references_image(&self, image: &str) -> bool {

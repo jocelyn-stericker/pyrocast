@@ -6,7 +6,6 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 
 pub enum DatabaseAction {
-    LoadSubscriptions,
     Subscribe(ChannelRef),
     Unsubscribe(ChannelRef),
 }
@@ -86,9 +85,6 @@ fn database_thread(recv: Receiver<DatabaseAction>, current: Arc<CurrentState>, l
 
     while let Ok(ev) = recv.recv() {
         match ev {
-            DatabaseAction::LoadSubscriptions => {
-                send_subscriptions(&subscriptions);
-            }
             DatabaseAction::Subscribe(channel) => {
                 let channel_pk = channel.pk().to_owned();
                 if !subscriptions.contains(&channel_pk) {
@@ -97,9 +93,7 @@ fn database_thread(recv: Receiver<DatabaseAction>, current: Arc<CurrentState>, l
                     add_subscription.reset().unwrap();
 
                     subscriptions.push(channel_pk.clone());
-
                     send_subscriptions(&subscriptions);
-
                     loader.queue(LoaderQuery::ItunesLookup { pk: channel_pk });
                 }
             }
@@ -123,8 +117,6 @@ pub fn new_database(current: Arc<CurrentState>, loader: Loader) -> Sender<Databa
     std::thread::spawn(move || {
         database_thread(recv_cmd, current, loader);
     });
-
-    send_cmd.send(DatabaseAction::LoadSubscriptions).unwrap();
 
     send_cmd
 }
