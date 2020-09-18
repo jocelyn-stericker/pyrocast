@@ -15,7 +15,7 @@ mod vgtk_ext;
 use app::{App, Message};
 use async_std::stream::StreamExt;
 use async_std::task;
-use loader::{Loader, Query};
+use loader::Loader;
 use state::CurrentState;
 use std::env::args;
 use std::sync::Arc;
@@ -33,14 +33,16 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
     task::spawn(async move {
         let loader = Loader::new(current.clone(), 10);
-        loader.queue(Query::ItunesChart {});
-
         let player = player::new_player(current.clone());
+        let database = database::new_database(current.clone(), loader.clone());
 
-        scope.send_message(Message::InitLoaderWIP(loader.clone(), player));
+        scope.send_message(Message::Init(loader, player, database));
 
         while waiter.next().await.is_some() {
-            scope.send_message(Message::StateChanged(current.get()));
+            let sent = scope.try_send(Message::StateChanged(current.get()));
+            if sent.is_err() {
+                break;
+            }
         }
         drop(scope);
     });

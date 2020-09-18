@@ -1,9 +1,10 @@
 [workspace]
 members = [
-  "state",
-  "loader",
+  "app",
   "cli",
+  "database",
+  "loader",
   "player",
-  "app"
+  "state"
 ]
 default-members = ["app"]

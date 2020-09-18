@@ -6,7 +6,7 @@ use state::{ChannelRef, StateError};
 use std::sync::Arc;
 use vgtk::lib::gdk_pixbuf::Pixbuf;
 use vgtk::lib::gtk::{
-    prelude::*, Align, Box, FlowBox, FlowBoxChild, Label, Orientation, ScrolledWindow,
+    prelude::*, Align, Box as GtkBox, FlowBox, FlowBoxChild, Label, Orientation, ScrolledWindow,
     SelectionMode, Spinner,
 };
 use vgtk::{gtk, Callback, Component, UpdateAction, VNode};
@@ -27,7 +27,7 @@ pub struct SearchResults {
 }
 
 impl SearchResults {
-    fn render_channels(&self, channels: &[ChannelRef]) -> Vec<VNode<SearchResults>> {
+    fn view_channels(&self, channels: &[ChannelRef]) -> Vec<VNode<SearchResults>> {
         channels
             .iter()
             .map(|channel| {
@@ -47,7 +47,7 @@ impl SearchResults {
                         halign=Align::Fill
                         margin_bottom=10
                     >
-                        <Box orientation=Orientation::Vertical>
+                        <GtkBox orientation=Orientation::Vertical>
                             <PreferredSize
                                 explicit_preferred_width=130
                                 explicit_preferred_height=130
@@ -64,7 +64,7 @@ impl SearchResults {
                                 halign=Align::Fill
                                 label=label
                             />
-                        </Box>
+                        </GtkBox>
                     </FlowBoxChild>
                 }
             })
@@ -124,7 +124,7 @@ impl Component for SearchResults {
             Option::Some(Ok(channels)) => gtk! {
                 <ScrolledWindow vexpand=true>
                     <FlowBox
-                        selection_mode=SelectionMode::Browse
+                        selection_mode=SelectionMode::Single
                         border_width=10
                         vexpand=true
                         valign=Align::Fill
@@ -142,7 +142,7 @@ impl Component for SearchResults {
                             )
                         }
                     >
-                        {self.render_channels(channels)}
+                        {self.view_channels(channels)}
                     </FlowBox>
                 </ScrolledWindow>
             },
@@ -171,11 +171,11 @@ impl Component for SearchResults {
         };
 
         gtk! {
-            <Box
+            <GtkBox
                 orientation=Orientation::Vertical
             >
                 {body}
-            </Box>
+            </GtkBox>
         }
     }
 }

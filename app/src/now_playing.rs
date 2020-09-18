@@ -2,8 +2,7 @@ use crate::fixed_image::FixedImage;
 use crate::vgtk_ext::*;
 use chrono::NaiveTime;
 use libhandy::{Column, ColumnExt};
-use pango::EllipsizeMode;
-use pango::{AttrList, Attribute, Weight};
+use pango::{AttrList, Attribute, EllipsizeMode, Weight};
 use state::{Episode, Playback, PlayerState, StateError};
 use std::sync::Arc;
 use vgtk::lib::gtk::{

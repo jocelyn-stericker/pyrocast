@@ -14,6 +14,9 @@ pub struct Props {
     pub on_select_podcast: Callback<Option<ChannelRef>>,
     pub on_play: Callback<EpisodeRef>,
     pub on_search: Callback<String>,
+    pub on_subscribe: Callback<ChannelRef>,
+    pub on_unsubscribe: Callback<ChannelRef>,
+    pub subscriptions: Option<Arc<Result<Vec<ChannelRef>, StateError>>>,
     pub selected_podcast: Option<ChannelRef>,
     pub chart_results: Option<Arc<Result<Vec<ChannelRef>, StateError>>>,
     pub mobile: bool,
@@ -29,6 +32,8 @@ pub enum Message {
     HandleSelectPodcast(Option<ChannelRef>),
     HandlePlay(Box<EpisodeRef>),
     HandleSearch(String),
+    HandleSubscribe(ChannelRef),
+    HandleUnsubscribe(ChannelRef),
 }
 
 impl Component for SearchTab {
@@ -47,6 +52,14 @@ impl Component for SearchTab {
             }
             Message::HandleSearch(search) => {
                 self.props.on_search.send(search);
+                UpdateAction::None
+            }
+            Message::HandleSubscribe(channel) => {
+                self.props.on_subscribe.send(channel);
+                UpdateAction::None
+            }
+            Message::HandleUnsubscribe(channel) => {
+                self.props.on_unsubscribe.send(channel);
                 UpdateAction::None
             }
         }
@@ -95,11 +108,24 @@ impl Component for SearchTab {
                 >
                     {
                         if let Some(podcast) = self.props.selected_podcast.clone() {
+                            let subscribed = self.props.subscriptions
+                                .as_ref()
+                                .and_then(|subs|
+                                    subs
+                                        .as_ref()
+                                        .as_ref()
+                                        .map(|subs| subs.contains(&podcast))
+                                        .ok())
+                                .unwrap_or(false);
+
                             gtk! {
                                 <@SearchDetail
                                     podcast={Some(podcast)}
                                     mobile=self.props.mobile
+                                    subscribed=subscribed
                                     on play=|episode| Message::HandlePlay(Box::new(episode))
+                                    on subscribe=|channel| Message::HandleSubscribe(channel)
+                                    on unsubscribe=|channel| Message::HandleUnsubscribe(channel)
                                 />
                             }
                         } else {

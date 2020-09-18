@@ -6,6 +6,7 @@ Pyrocast is a podcast app for Linux phones that use gtk.
 
 Features:
  - Browse or search iTunes podcasts.
+ - Subscribe to podcasts.
  - Stream podcasts.
 
 ## Building

@@ -3,6 +3,7 @@ use crate::now_playing::NowPlaying;
 use crate::search_tab::SearchTab;
 use crate::settings_tab::SettingsTab;
 use crate::vgtk_ext::*;
+use database::DatabaseAction;
 use libhandy::{
     CenteringPolicy, HeaderBar, HeaderBarExt, Squeezer, SqueezerExt, ViewSwitcher, ViewSwitcherBar,
     ViewSwitcherBarExt, ViewSwitcherExt, ViewSwitcherPolicy,
@@ -35,6 +36,7 @@ pub enum Message {
     SetTab(Tab),
     SetSearchDetail(Option<ChannelRef>),
     SetSearchQuery(String),
+    SetHomeDetail(Option<ChannelRef>),
 
     // Playback
     HandlePlay(EpisodeRef),
@@ -45,9 +47,13 @@ pub enum Message {
     HandleSeek(u64),
     HandleRateChange(f64),
 
+    // Subscription
+    HandleSubscribe(ChannelRef),
+    HandleUnsubscribe(ChannelRef),
+
     // External
     InitDispatch(Arc<CurrentState>),
-    InitLoaderWIP(Loader, Sender<PlayerAction>),
+    Init(Loader, Sender<PlayerAction>, Sender<DatabaseAction>),
     StateChanged(Arc<State>),
 }
 
@@ -65,6 +71,7 @@ pub struct App {
     current: Option<Arc<CurrentState>>,
     loader: Option<Loader>,
     player: Option<Sender<PlayerAction>>,
+    database: Option<Sender<DatabaseAction>>,
 }
 
 impl App {}
@@ -115,6 +122,19 @@ impl Component for App {
                         loader.queue(Query::ItunesChart);
                     } else {
                         loader.queue(Query::ItunesSearch { query: search });
+                    }
+                }
+                UpdateAction::None
+            }
+            Message::SetHomeDetail(channel) => {
+                if let Some(current) = &self.current {
+                    current.update(vec![StateAction::SetHomeFocus(channel.clone())]);
+                }
+                if let Some(loader) = &self.loader {
+                    if let Some(channel) = channel {
+                        loader.queue(Query::ItunesLookup {
+                            pk: channel.pk().to_owned(),
+                        });
                     }
                 }
                 UpdateAction::None
@@ -201,14 +221,29 @@ impl Component for App {
                 UpdateAction::None
             }
 
+            // Subscribe
+            Message::HandleSubscribe(channel) => {
+                if let Some(database) = &self.database {
+                    database.send(DatabaseAction::Subscribe(channel)).unwrap();
+                }
+                UpdateAction::None
+            }
+            Message::HandleUnsubscribe(channel) => {
+                if let Some(database) = &self.database {
+                    database.send(DatabaseAction::Unsubscribe(channel)).unwrap();
+                }
+                UpdateAction::None
+            }
+
             // External
             Message::InitDispatch(current) => {
                 self.current = Some(current);
                 UpdateAction::None
             }
-            Message::InitLoaderWIP(loader, player) => {
+            Message::Init(loader, player, database) => {
                 self.loader = Some(loader);
                 self.player = Some(player);
+                self.database = Some(database);
                 UpdateAction::None
             }
             Message::StateChanged(state) => {
@@ -257,6 +292,16 @@ impl Component for App {
                         centering_policy=CenteringPolicy::Strict
                         widget_name="pyrocast_app_header_bar"
                     >
+                        <Button
+                            visible=self.state.home_focus().is_some() && tab == Tab::Home
+                            valign=Align::Center
+                            on clicked=|_| Message::SetHomeDetail(None)
+                        >
+                            <Image
+                                property_icon_name="go-previous-symbolic"
+                                property_icon_size=1
+                            />
+                        </Button>
                         <Button
                             visible=self.state.search_focus().is_some() && tab == Tab::Search
                             valign=Align::Center
@@ -321,7 +366,15 @@ impl Component for App {
                                 Stack::selected=tab == Tab::Home
                                 Stack::name="pyrocast_tab_home"
                             >
-                                <@HomeTab />
+                                <@HomeTab
+                                    selected_podcast=self.state.home_focus().cloned()
+                                    mobile=self.mobile
+                                    subscriptions=Some(self.state.subscriptions())
+                                    on select_podcast=|podcast| Message::SetHomeDetail(podcast)
+                                    on play=|episode| Message::HandlePlay(episode)
+                                    on subscribe=|channel| Message::HandleSubscribe(channel)
+                                    on unsubscribe=|channel| Message::HandleUnsubscribe(channel)
+                                />
                             </GtkBox>
                             <GtkBox
                                 Stack::title="Search"
@@ -333,9 +386,12 @@ impl Component for App {
                                     chart_results=Some(self.state.search_results())
                                     selected_podcast=self.state.search_focus().cloned()
                                     mobile=self.mobile
+                                    subscriptions=Some(self.state.subscriptions())
                                     on select_podcast=|podcast| Message::SetSearchDetail(podcast)
                                     on play=|episode| Message::HandlePlay(episode)
                                     on search=|search| Message::SetSearchQuery(search)
+                                    on subscribe=|channel| Message::HandleSubscribe(channel)
+                                    on unsubscribe=|channel| Message::HandleUnsubscribe(channel)
                                 />
                             </GtkBox>
                             <GtkBox
